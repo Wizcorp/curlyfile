@@ -1,6 +1,6 @@
 {
   "name": "curlyfile",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Download a file using curl, purely in C++ land",
   "main": "index.js",
   "scripts": {
@@ -11,6 +11,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "gypfile": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wizcorp/curlyfile.git"
+  },
   "keywords": [
     "http",
     "https",
