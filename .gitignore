@@ -1,0 +1,4 @@
+.cmake
+build/
+.gdb_history
+node_modules
