@@ -30,6 +30,7 @@
     "node-gyp": "^3.4.0"
   },
   "devDependencies": {
+    "async": "^2.1.4",
     "dnscache": "^1.0.0",
     "paperboy": "0.0.5"
   }

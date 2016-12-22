@@ -1,8 +1,7 @@
 #include "downloader.h"
 
-bool running;
-uv_loop_t *loop;
 CURLM *curl_handle;
+uv_loop_t *loop;
 uv_timer_t timeout;
 
 typedef struct curl_context_s {
@@ -14,7 +13,6 @@ curl_context_t* create_curl_context(curl_socket_t sockfd) {
   curl_context_t *context;
 
   context = (curl_context_t *) malloc(sizeof *context);
-
   context->sockfd = sockfd;
 
   uv_poll_init_socket(loop, &context->poll_handle, sockfd);
@@ -32,17 +30,9 @@ void destroy_curl_context(curl_context_t *context) {
   uv_close((uv_handle_t *) &context->poll_handle, curl_close_cb);
 }
 
-void add_download(CURL *session) {
-  curl_multi_add_handle(curl_handle, session);
-  if (!running) {
-    std::async(std::launch::deferred, downloader_start);
-  }
-}
-
 static void check_multi_info(void) {
   Nan::HandleScope scope;
   DownloadObject *download;
-  v8::Local<v8::Value> argv[1];
   CURLMsg *message;
   int pending;
   int httpCode;
@@ -61,23 +51,11 @@ static void check_multi_info(void) {
       curl_easy_getinfo(easy_handle, CURLINFO_RESPONSE_CODE, &httpCode);
       curl_multi_remove_handle(curl_handle, easy_handle);
 
-      if (strlen(download->error) > 0) {
-        argv[0] = Nan::Error(download->error);
-      } else if (httpCode != 200) {
-        sprintf(download->error, "Non-200 return code, received %d", httpCode);
-        argv[0] = Nan::Error(download->error);
-      } else {
-        argv[0] = Nan::Undefined();
-      }
-
-      download->curly->downloads.push_back(download);
-      fclose(download->file);
-      download->error[0] = '\0';
-
-      download->callback->Call(1, argv);
+      download->OnComplete(httpCode);
       break;
 
     default:
+      // Todo: throw?
       fprintf(stderr, "CURLMSG default\n");
       break;
     }
@@ -89,32 +67,31 @@ void curl_perform(uv_poll_t *req, int status, int events) {
   int flags = 0;
   curl_context_t *context;
 
-  uv_timer_stop(&timeout);
-
-  if(events & UV_READABLE)
+  if(events & UV_READABLE) {
     flags |= CURL_CSELECT_IN;
-  if(events & UV_WRITABLE)
+  }
+  if(events & UV_WRITABLE) {
     flags |= CURL_CSELECT_OUT;
+  }
 
   context = (curl_context_t *) req->data;
-
-  curl_multi_socket_action(curl_handle, context->sockfd, flags,
-                           &running_handles);
-
+  curl_multi_socket_action(curl_handle, context->sockfd, flags, &running_handles);
   check_multi_info();
 }
 
 void on_timeout(uv_timer_t *req) {
   int running_handles;
-  curl_multi_socket_action(curl_handle, CURL_SOCKET_TIMEOUT, 0,
-                           &running_handles);
+  curl_multi_socket_action(curl_handle, CURL_SOCKET_TIMEOUT, 0, &running_handles);
   check_multi_info();
 }
 
 void start_timeout(CURLM *multi, long timeout_ms, void *userp) {
-  if(timeout_ms <= 0)
-    timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in
-                       a bit */
+  // 0 means directly call socket_action,
+  // but we'll do it in a bit
+  if(timeout_ms <= 0) {
+    timeout_ms = 1;
+  }
+
   uv_timer_start(&timeout, on_timeout, timeout_ms, 0);
 }
 
@@ -131,10 +108,13 @@ int handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *so
 
     curl_multi_assign(curl_handle, s, (void *) curl_context);
 
-    if(action != CURL_POLL_IN)
+    if(action != CURL_POLL_IN) {
       events |= UV_WRITABLE;
-    if(action != CURL_POLL_OUT)
+    }
+
+    if(action != CURL_POLL_OUT) {
       events |= UV_READABLE;
+    }
 
     uv_poll_start(&curl_context->poll_handle, events, curl_perform);
     break;
@@ -152,19 +132,20 @@ int handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *so
   return 0;
 }
 
+void add_download(CURL *session) {
+  curl_multi_add_handle(curl_handle, session);
+}
+
 void downloader_init() {
   loop = uv_default_loop();
   curl_global_init(CURL_GLOBAL_ALL);
   uv_timer_init(loop, &timeout);
 
   curl_handle = curl_multi_init();
-  // curl_multi_setopt(curl_handle, CURLMOPT_PIPELINING, 1L);
+
+  curl_multi_setopt(curl_handle, CURLMOPT_PIPELINING, 3L);
+  curl_multi_setopt(curl_handle, CURLMOPT_MAX_HOST_CONNECTIONS, 10);
+  curl_multi_setopt(curl_handle, CURLMOPT_MAX_PIPELINE_LENGTH, 10);
   curl_multi_setopt(curl_handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
   curl_multi_setopt(curl_handle, CURLMOPT_TIMERFUNCTION, start_timeout);
-}
-
-void downloader_start() {
-  running = true;
-  uv_run(loop, UV_RUN_DEFAULT);
-  running = false;
 }

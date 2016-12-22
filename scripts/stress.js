@@ -30,7 +30,7 @@ process.on('SIGINT', function () {
 header()
 function run() {
   const fileUrl = url + file
-  bench(`Curly`, file, fileUrl, util[func], 1000, 20)(run)
+  bench(func, file, fileUrl, util[func], 1000, 20)(run)
 }
 run()
 

@@ -6,49 +6,6 @@ NAN_MODULE_INIT(InitAll) {
   Curlyfile::Init(target);
 }
 
-void CurlyfileAsyncWorker::Execute() {
-  CURLcode code;
-  long httpCode = 0;
-  error[0] = '\0';
-
-  FILE *file = fopen(outfile, "wb");
-  if (!file) {
-    sprintf(error, "Failed to open file");
-    return;
-  }
-
-  curl_easy_setopt(session, CURLOPT_URL, url);
-  curl_easy_setopt(session, CURLOPT_ERRORBUFFER, error);
-  // curl_easy_setopt(session, CURLOPT_WRITEFUNCTION, write_data);
-  curl_easy_setopt(session, CURLOPT_PRIVATE, file);
-  curl_easy_setopt(session, CURLOPT_WRITEDATA, file);
-  code = curl_easy_perform(session);
-
-  if (code != CURLE_OK) {
-    sprintf(error, "CURL Failed (%s)", curl_easy_strerror(code));
-  } else {
-    curl_easy_getinfo(session, CURLINFO_RESPONSE_CODE, &httpCode);
-    if (httpCode != 200) {
-      sprintf(error, "Non-200 response (received %ld)", httpCode);
-    }
-  }
-
-  fclose(file);
-  // curly->sessions.push_back(session);
-}
-
-void CurlyfileAsyncWorker::HandleOKCallback() {
-  v8::Local<v8::Value> argv[1];
-
-  if (strlen(error) > 0) {
-    argv[0] = Nan::Error(error);
-  } else {
-    argv[0] = Nan::Undefined();
-  }
-
-  callback->Call(1, argv);
-}
-
 Nan::Persistent<v8::Function> Curlyfile::constructor;
 
 NAN_MODULE_INIT(Curlyfile::Init) {
@@ -76,12 +33,11 @@ Curlyfile::Curlyfile() {
     CURL *session = curl_easy_init();
 
     curl_easy_setopt(session, CURLOPT_WRITEFUNCTION, write_data);
-    curl_easy_setopt(session, CURLOPT_MAXCONNECTS, 1);
     curl_easy_setopt(session, CURLOPT_TCP_KEEPALIVE, 1);
     curl_easy_setopt(session, CURLOPT_TCP_KEEPIDLE, 30L);
     curl_easy_setopt(session, CURLOPT_TCP_KEEPINTVL, 5L);
     curl_easy_setopt(session, CURLOPT_DNS_CACHE_TIMEOUT, 300);
-    // curl_easy_setopt(session, CURLOPT_PIPEWAIT, 1L);
+    curl_easy_setopt(session, CURLOPT_PIPEWAIT, 0L);
 
     DownloadObject *download = new DownloadObject(this, session);
     curl_easy_setopt(session, CURLOPT_ERRORBUFFER, &(download->error));
@@ -137,34 +93,11 @@ NAN_METHOD(Curlyfile::Download) {
   Curlyfile *curly = Nan::ObjectWrap::Unwrap<Curlyfile>(info.This());
   char *url = ToCString(info[0]);
   char *outfile = ToCString(info[1]);
+  Nan::Callback *callback = new Callback(info[2].As<v8::Function>());
 
   DownloadObject *download = curly->downloads.front();
   curly->downloads.pop_front();
-
-  download->file = fopen(outfile, "wb");
-  if (!download->file) {
-    // todo: callback instead
-    isolate->ThrowException(Exception::TypeError(
-          String::NewFromUtf8(isolate, "Failed to open file")));
-    return;
-  }
-
-  download->callback = new Callback(info[2].As<v8::Function>());
-
-  curl_easy_setopt(download->session, CURLOPT_URL, url);
-  curl_easy_setopt(download->session, CURLOPT_WRITEDATA, download->file);
-
-
-  add_download(download->session);
-  // CurlyfileAsyncWorker* worker = new CurlyfileAsyncWorker(
-  //     callback,
-  //     curly,
-  //     session,
-  //     url,
-  //     outfilename
-  //     );
-
-  // Nan::AsyncQueueWorker(worker);
+  download->Start(url, outfile, callback);
 }
 
 NODE_MODULE(curlyfile, InitAll)

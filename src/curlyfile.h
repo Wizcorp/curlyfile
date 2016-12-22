@@ -4,34 +4,16 @@
 #include <nan.h>
 #include <curl/curl.h>
 #include <list>
-#include <future>
 #include "downloader.h"
 
-#define MAX_CONCURRENT 50
+#define MAX_CONCURRENT 100
 
 using namespace v8;
 using Nan::AsyncQueueWorker;
 using Nan::AsyncWorker;
 using Nan::Callback;
 
-class Curlyfile;
-
-class DownloadObject {
-  public:
-    Curlyfile *curly;
-    CURL *session;
-    FILE *file;
-    char error[256];
-    Nan::Callback *callback;
-    DownloadObject(Curlyfile *curly, CURL *session)
-      : curly(curly), session(session) {
-        error[0] = '\0';
-      }
-    ~DownloadObject(){}
-
-  protected:
-    Persistent<v8::Object> persistentHandle;
-};
+class DownloadObject;
 
 class Curlyfile : public Nan::ObjectWrap {
   public:
@@ -47,18 +29,50 @@ class Curlyfile : public Nan::ObjectWrap {
     static Nan::Persistent<v8::Function> constructor;
 };
 
-class CurlyfileAsyncWorker : public Nan::AsyncWorker {
+void add_download(CURL *session);
+
+class DownloadObject {
   public:
-    CurlyfileAsyncWorker(Nan::Callback *callback, Curlyfile *curly, CURL *session, char *url, char *outfile)
-      : Nan::AsyncWorker(callback), curly(curly), session(session), url(url), outfile(outfile) {}
-    ~CurlyfileAsyncWorker(){}
-    void Execute();
-  protected:
     Curlyfile *curly;
     CURL *session;
-    char *url;
-    char *outfile;
+    FILE *file;
     char error[256];
-    void HandleOKCallback();
+    Nan::Callback *callback;
+    v8::Local<v8::Value> argv[1];
+    DownloadObject(Curlyfile *curly, CURL *session)
+      : curly(curly), session(session) {}
+    ~DownloadObject(){}
+    void Start(char *url, char *outfile, Nan::Callback *callback) {
+      error[0] = '\0';
+
+      file = fopen(outfile, "wb");
+      if (!file) {
+        sprintf(error, "Failed to open destination file: %s", strerror(errno));
+        argv[0] = Nan::Error(error);
+        callback->Call(1, argv);
+        return;
+      }
+
+      this->callback = callback;
+
+      curl_easy_setopt(session, CURLOPT_URL, url);
+      curl_easy_setopt(session, CURLOPT_WRITEDATA, file);
+      add_download(session);
+    }
+    void OnComplete (int httpCode) {
+      if (strlen(error) > 0) {
+        argv[0] = Nan::Error(error);
+      } else if (httpCode != 200) {
+        sprintf(error, "Non-200 return code, received %d", httpCode);
+        argv[0] = Nan::Error(error);
+      } else {
+        argv[0] = Nan::Undefined();
+      }
+
+      curly->downloads.push_back(this);
+      fclose(file);
+
+      callback->Call(1, argv);
+    }
 };
 #endif

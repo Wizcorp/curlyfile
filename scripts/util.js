@@ -1,5 +1,6 @@
-const url = 'http://localhost:8080/'
+const async = require('async')
 
+const url = 'http://localhost:8080/'
 const files = [
   '4k',
   '32k',
@@ -48,32 +49,21 @@ function bench(name, file, url, func, count, parallel = 1) {
     const start = Date.now()
     let countdown = count
 
-    function run() {
-      func(url, function (error) {
-	      if (error) {
-          console.log('Error:', error)
-          return
-        }
+    async.timesLimit(count, parallel, function (counter, callback) {
+      if (countdown % 50 === 0) {
+        process.stderr.write(`\r>> ${countdown} `)
+      }
 
-        if (countdown % 50 === 0) {
-          process.stderr.write(`\r>> ${countdown} `)
-        }
+      countdown -= 1
+      func(url, callback)
+    }, function (error) {
+      if (error) {
+        return callback(error)
+      }
 
-        countdown -= 1
-
-        if (countdown === 0) {
-          process.stderr.write(`\r       `)
-          console.log(`\r| ${file}\t | ${name} \t | ${count} \t | ${parallel} \t | ${Date.now() - start} \t|`)
-          callback()
-        } else if (countdown >= parallel) {
-          run()
-        }
-      })
-    }
-
-    for (let d = 0; d < parallel; d += 1) {
-      run()
-    }
+      console.log(`\r| ${file}\t | ${name} \t | ${count} \t | ${parallel} \t | ${Date.now() - start} \t|`)
+      callback()
+    })
   }
 }
 
@@ -81,18 +71,7 @@ function bench(name, file, url, func, count, parallel = 1) {
  * Serial runner
  */
 function serial(funcs) {
-  function run() {
-    if (funcs.length === 0) {
-      return
-    }
-
-    const func = funcs.shift()
-    setTimeout(function () {
-      func(run)
-    }, 500)
-  }
-
-  run()
+  async.series(funcs, line)
 }
 
 /**
@@ -100,7 +79,11 @@ function serial(funcs) {
  */
 function line(callback) {
   console.log('-----------------------------------------------------------------')
-  callback && callback()
+  if (typeof callback == 'function') {
+    callback()
+  } else if (callback) {
+    throw callback // error!
+  }
 }
 
 function header() {
