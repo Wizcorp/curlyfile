@@ -1,6 +1,7 @@
 const async = require('async')
 
 const url = 'http://localhost:8080/'
+
 const files = [
   '4k',
   '32k',
@@ -47,20 +48,19 @@ function standard(file, callback) {
 function bench(name, file, url, func, count, parallel = 1) {
   return function(callback) {
     const start = Date.now()
-    let countdown = count
 
     async.timesLimit(count, parallel, function (counter, callback) {
-      if (countdown % 50 === 0) {
-        process.stderr.write(`\r>> ${countdown} `)
+      if (counter % 100 === 0) {
+        process.stderr.write(`\r>> ${counter} `)
       }
 
-      countdown -= 1
       func(url, callback)
     }, function (error) {
       if (error) {
         return callback(error)
       }
 
+      process.stderr.write(`\r>>          `)
       console.log(`\r| ${file}\t | ${name} \t | ${count} \t | ${parallel} \t | ${Date.now() - start} \t|`)
       callback()
     })

@@ -49,9 +49,10 @@ static void check_multi_info(void) {
       easy_handle = message->easy_handle;
       curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &download);
       curl_easy_getinfo(easy_handle, CURLINFO_RESPONSE_CODE, &httpCode);
-      curl_multi_remove_handle(curl_handle, easy_handle);
 
       download->OnComplete(httpCode);
+
+      curl_multi_remove_handle(curl_handle, easy_handle);
       break;
 
     default:
@@ -143,9 +144,6 @@ void downloader_init() {
 
   curl_handle = curl_multi_init();
 
-  curl_multi_setopt(curl_handle, CURLMOPT_PIPELINING, 3L);
-  curl_multi_setopt(curl_handle, CURLMOPT_MAX_HOST_CONNECTIONS, 10);
-  curl_multi_setopt(curl_handle, CURLMOPT_MAX_PIPELINE_LENGTH, 10);
   curl_multi_setopt(curl_handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
   curl_multi_setopt(curl_handle, CURLMOPT_TIMERFUNCTION, start_timeout);
 }

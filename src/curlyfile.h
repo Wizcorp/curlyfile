@@ -4,6 +4,7 @@
 #include <nan.h>
 #include <curl/curl.h>
 #include <list>
+#include <mutex>
 #include "downloader.h"
 
 #define MAX_CONCURRENT 100
@@ -17,9 +18,22 @@ class DownloadObject;
 
 class Curlyfile : public Nan::ObjectWrap {
   public:
+    std::mutex mtx;
     std::list<DownloadObject*> downloads;
     static NAN_MODULE_INIT(Init);
+    DownloadObject *GetDownloadObject() {
+      mtx.lock();
+      DownloadObject *download = downloads.front();
+      downloads.pop_front();
+      mtx.unlock();
 
+      return download;
+    }
+    void ReturnDownloadObject(DownloadObject *download) {
+      mtx.lock();
+      downloads.push_back(download);
+      mtx.unlock();
+    }
   private:
     explicit Curlyfile();
     ~Curlyfile();
@@ -44,7 +58,6 @@ class DownloadObject {
     ~DownloadObject(){}
     void Start(char *url, char *outfile, Nan::Callback *callback) {
       error[0] = '\0';
-
       file = fopen(outfile, "wb");
       if (!file) {
         sprintf(error, "Failed to open destination file: %s", strerror(errno));
@@ -69,10 +82,9 @@ class DownloadObject {
         argv[0] = Nan::Undefined();
       }
 
-      curly->downloads.push_back(this);
       fclose(file);
-
       callback->Call(1, argv);
+      curly->ReturnDownloadObject(this);
     }
 };
 #endif

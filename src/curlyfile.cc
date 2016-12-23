@@ -34,24 +34,22 @@ Curlyfile::Curlyfile() {
 
     curl_easy_setopt(session, CURLOPT_WRITEFUNCTION, write_data);
     curl_easy_setopt(session, CURLOPT_TCP_KEEPALIVE, 1);
-    curl_easy_setopt(session, CURLOPT_TCP_KEEPIDLE, 30L);
-    curl_easy_setopt(session, CURLOPT_TCP_KEEPINTVL, 5L);
+    curl_easy_setopt(session, CURLOPT_TCP_KEEPIDLE, 120L);
+    curl_easy_setopt(session, CURLOPT_TCP_KEEPINTVL, 60L);
     curl_easy_setopt(session, CURLOPT_DNS_CACHE_TIMEOUT, 300);
-    curl_easy_setopt(session, CURLOPT_PIPEWAIT, 0L);
 
     DownloadObject *download = new DownloadObject(this, session);
     curl_easy_setopt(session, CURLOPT_ERRORBUFFER, &(download->error));
     curl_easy_setopt(session, CURLOPT_PRIVATE, download);
 
-    downloads.push_back(download);
+    ReturnDownloadObject(download);
   }
 }
 
 Curlyfile::~Curlyfile() {
   for (int i = 0; i < MAX_CONCURRENT; i++){
-    DownloadObject *download = downloads.back();
+    DownloadObject *download = GetDownloadObject();
     curl_easy_cleanup(download->session);
-    downloads.pop_back();
   }
 }
 
@@ -95,9 +93,7 @@ NAN_METHOD(Curlyfile::Download) {
   char *outfile = ToCString(info[1]);
   Nan::Callback *callback = new Callback(info[2].As<v8::Function>());
 
-  DownloadObject *download = curly->downloads.front();
-  curly->downloads.pop_front();
-  download->Start(url, outfile, callback);
+  curly->GetDownloadObject()->Start(url, outfile, callback);
 }
 
 NODE_MODULE(curlyfile, InitAll)

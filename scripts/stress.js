@@ -16,8 +16,8 @@ if (!func || !util[func]) {
   process.exit()
 }
 
-if (files.indexOf(file) === -1) {
-  console.log('File not found. Available files:', files)
+if (files.indexOf(file) === -1 && file !== 'random') {
+  console.log('File not found. Available files: random,', files)
   process.exit()
 }
 
@@ -28,8 +28,18 @@ process.on('SIGINT', function () {
 })
 
 header()
-function run() {
-  const fileUrl = url + file
+function run(error) {
+  if (error) {
+    return console.log(error)
+  }
+
+  let fileToDownload = file
+
+  if (file === 'random') {
+    fileToDownload = files[Math.floor(Math.random() * files.length)]
+  }
+
+  const fileUrl = url + fileToDownload
   bench(func, file, fileUrl, util[func], 1000, 20)(run)
 }
 run()

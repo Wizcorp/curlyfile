@@ -1,16 +1,18 @@
 {
   "name": "curlyfile",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Download a file using curl, purely in C++ land",
   "main": "index.js",
   "scripts": {
+    "cmake": "cmake-js",
+    "install": "cmake-js compile",
+    "server": "node scripts/server",
     "benchmark": "node ./scripts/benchmark",
     "stress": "node ./scripts/stress",
-    "debug-gdb": "sudo gdb --args node scripts/stress.js curly",
-    "debug-lldb": "lldb node -- scripts/stress.js curly",
+    "debug-gdb": "sudo gdb --args node",
+    "debug-lldb": "lldb node",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "gypfile": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Wizcorp/curlyfile.git"
@@ -25,6 +27,7 @@
   "license": "MIT",
   "dependencies": {
     "bindings": "^1.2.1",
+    "cmake-js": "^3.3.1",
     "nan": "^2.4.0",
     "node-gyp": "^3.4.0"
   },
