@@ -1,6 +1,6 @@
 {
   "name": "curlyfile",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Download a file using curl, purely in C++ land",
   "main": "index.js",
   "scripts": {
