@@ -3,14 +3,14 @@
 
 #include <fcntl.h>
 
-#if defined(__unix__) || defined (__CYGWIN__)
-    #include <unistd.h>
+#if defined(WIN32)
+  #include <io.h>
 #else
-    #include <io.h>
+  #include <unistd.h>
 #endif
 
 #ifndef O_BINARY
-    #define O_BINARY 0
+  #define O_BINARY 0
 #endif
 
 #include <nan.h>
