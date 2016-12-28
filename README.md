@@ -37,17 +37,17 @@ Development
 -----------
 
 ```bash
-git clone ... 
+git clone ...
 cd curlyfile
 git submodule update --init
 # Or any cmake.js command - npm run -- cmake -h for more details
-npm run cmake build 
+npm run cmake build
 ```
 
 Todo
 ----
 
-  - [] Windows benchmark not very good
-  - [] Proper tests
-  - [] Cancel API
-  - [] Progress API (# of bytes downloaded so far)
+  - [ ] Proper tests
+  - [ ] Cancel API
+  - [ ] Progress API (# of bytes downloaded so far)
+  - [ ] Prebuild for Node.js and Electron
