@@ -50,7 +50,7 @@ function bench(name, file, url, func, count, parallel = 1) {
     const start = Date.now()
 
     async.timesLimit(count, parallel, function (counter, callback) {
-      if (counter % 100 === 0) {
+      if (counter % 10 === 0) {
         process.stderr.write(`\r>> ${counter} `)
       }
 

@@ -13,6 +13,7 @@ include_directories(${CMAKE_JS_INC})
 # Build libcurl
 add_subdirectory(deps/curl)
 target_compile_definitions(libcurl PUBLIC BUILDING_LIBCURL)
+target_compile_definitions(libcurl PUBLIC CURL_MAX_WRITE_SIZE=5242880)
 
 # Add its include dirs
 include_directories(deps/curl/include)

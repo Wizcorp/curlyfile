@@ -40,7 +40,7 @@ function run(error) {
   }
 
   const fileUrl = url + fileToDownload
-  bench(func, file, fileUrl, util[func], 1000, 20)(run)
+  bench(func, fileToDownload, fileUrl, util[func], 100, 20)(run)
 }
 run()
 

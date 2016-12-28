@@ -8,6 +8,7 @@
 #include "downloader.h"
 
 #define MAX_CONCURRENT 100
+#define RECV_BUFFER 1024 * 1024
 
 using namespace v8;
 using Nan::AsyncQueueWorker;
@@ -53,6 +54,7 @@ class DownloadObject {
     char error[256];
     Nan::Callback *callback;
     v8::Local<v8::Value> argv[1];
+
     DownloadObject(Curlyfile *curly, CURL *session)
       : curly(curly), session(session) {}
     ~DownloadObject(){}
@@ -66,8 +68,14 @@ class DownloadObject {
         return;
       }
 
+      setvbuf(file, NULL, _IOFBF, RECV_BUFFER);
       this->callback = callback;
 
+      struct curl_slist *headers = NULL;
+      // headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
+      // headers = curl_slist_append(headers, "Expect:");
+
+      curl_easy_setopt(session, CURLOPT_HTTPHEADER, headers);
       curl_easy_setopt(session, CURLOPT_URL, url);
       curl_easy_setopt(session, CURLOPT_WRITEDATA, file);
       add_download(session);
@@ -82,8 +90,8 @@ class DownloadObject {
         argv[0] = Nan::Undefined();
       }
 
-      fclose(file);
       callback->Call(1, argv);
+      fclose(file);
       curly->ReturnDownloadObject(this);
     }
 };

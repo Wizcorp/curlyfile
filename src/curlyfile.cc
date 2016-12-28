@@ -23,6 +23,11 @@ NAN_MODULE_INIT(Curlyfile::Init) {
   Nan::Set(target, Nan::New("Curlyfile").ToLocalChecked(), Nan::GetFunction(tpl).ToLocalChecked());
 }
 
+int recv_size =  RECV_BUFFER;
+int set_sockopt(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
+  setsockopt(curlfd, SOL_SOCKET, SO_RCVBUF, &recv_size, sizeof(recv_size));
+}
+
 size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
   size_t written = fwrite(ptr, size, nmemb, stream);
   return written;
@@ -32,11 +37,13 @@ Curlyfile::Curlyfile() {
   for (int i = 0; i < MAX_CONCURRENT; i++){
     CURL *session = curl_easy_init();
 
+    curl_easy_setopt(session, CURLOPT_SOCKOPTFUNCTION, set_sockopt);
     curl_easy_setopt(session, CURLOPT_WRITEFUNCTION, write_data);
     curl_easy_setopt(session, CURLOPT_TCP_KEEPALIVE, 1);
     curl_easy_setopt(session, CURLOPT_TCP_KEEPIDLE, 120L);
     curl_easy_setopt(session, CURLOPT_TCP_KEEPINTVL, 60L);
     curl_easy_setopt(session, CURLOPT_DNS_CACHE_TIMEOUT, 300);
+    curl_easy_setopt(session, CURLOPT_NOPROGRESS, 1L);
 
     DownloadObject *download = new DownloadObject(this, session);
     curl_easy_setopt(session, CURLOPT_ERRORBUFFER, &(download->error));
