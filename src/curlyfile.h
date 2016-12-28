@@ -1,6 +1,18 @@
 #ifndef NATIVE_EXTENSION_GRAB_H
 #define NATIVE_EXTENSION_GRAB_H
 
+#include <fcntl.h>
+
+#if defined(__unix__) || defined (__CYGWIN__)
+    #include <unistd.h>
+#else
+    #include <io.h>
+#endif
+
+#ifndef O_BINARY
+    #define O_BINARY 0
+#endif
+
 #include <nan.h>
 #include <curl/curl.h>
 #include <list>
@@ -50,7 +62,7 @@ class DownloadObject {
   public:
     Curlyfile *curly;
     CURL *session;
-    FILE *file;
+    int file;
     char error[256];
     Nan::Callback *callback;
     v8::Local<v8::Value> argv[1];
@@ -60,15 +72,15 @@ class DownloadObject {
     ~DownloadObject(){}
     void Start(char *url, char *outfile, Nan::Callback *callback) {
       error[0] = '\0';
-      file = fopen(outfile, "wb");
-      if (!file) {
+      file = open(outfile, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0700);
+      if (file < 0) {
         sprintf(error, "Failed to open destination file: %s", strerror(errno));
         argv[0] = Nan::Error(error);
         callback->Call(1, argv);
         return;
       }
 
-      setvbuf(file, NULL, _IOFBF, RECV_BUFFER);
+      //setvbuf(file, NULL, _IOFBF, RECV_BUFFER);
       this->callback = callback;
 
       struct curl_slist *headers = NULL;
@@ -91,7 +103,7 @@ class DownloadObject {
       }
 
       callback->Call(1, argv);
-      fclose(file);
+      close(file);
       curly->ReturnDownloadObject(this);
     }
 };

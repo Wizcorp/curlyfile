@@ -23,13 +23,14 @@ NAN_MODULE_INIT(Curlyfile::Init) {
   Nan::Set(target, Nan::New("Curlyfile").ToLocalChecked(), Nan::GetFunction(tpl).ToLocalChecked());
 }
 
-int recv_size =  RECV_BUFFER;
+const char recv_size = (const char)RECV_BUFFER;
 int set_sockopt(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
   setsockopt(curlfd, SOL_SOCKET, SO_RCVBUF, &recv_size, sizeof(recv_size));
+  return CURL_SOCKOPT_OK;
 }
 
-size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-  size_t written = fwrite(ptr, size, nmemb, stream);
+size_t write_data(void *ptr, size_t size, size_t nmemb, int file) {
+  size_t written = write(file, ptr, nmemb);
   return written;
 }
 
